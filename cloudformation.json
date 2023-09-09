@@ -1,0 +1,855 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "CSCI 5409 Term Assignment Deployment script",
+  "Resources": {
+    "SubscribeStateMachineTriggerLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "term-assignment-final-deployment",
+          "S3Key": "newsly.zip"
+        },
+        "Handler": "src/subscribeSM.handler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "adv-cloud-computing-new-dev-subscribeStateMachineTrigger",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Environment": {
+          "Variables": {
+            "SM_ARN": {
+              "Fn::GetAtt": [
+                "SubscribeNewsLetterSM",
+                "Arn"
+              ]
+            }
+          }
+        },
+        "Role": "arn:aws:iam::975718584711:role/LabRole"
+      }
+    },
+    "UploadNewsLetterLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "term-assignment-final-deployment",
+          "S3Key": "newsly.zip"
+        },
+        "Handler": "src/uploadNewsletter.handler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "adv-cloud-computing-new-dev-uploadNewsLetter",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": "arn:aws:iam::975718584711:role/LabRole"
+      }
+    },
+    "SavePreferencesLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "term-assignment-final-deployment",
+          "S3Key": "newsly.zip"
+        },
+        "Handler": "src/savePreferences.handler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "adv-cloud-computing-new-dev-savePreferences",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": "arn:aws:iam::975718584711:role/LabRole"
+      }
+    },
+    "SubscribeForNotificationsLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "term-assignment-final-deployment",
+          "S3Key": "newsly.zip"
+        },
+        "Handler": "src/subscribeForNotifications.handler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "adv-cloud-computing-new-dev-subscribeForNotifications",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": "arn:aws:iam::975718584711:role/LabRole"
+      }
+    },
+    "ScheduleNewsLetterLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "term-assignment-final-deployment",
+          "S3Key": "newsly.zip"
+        },
+        "Handler": "src/scheduleNewsLetter.handler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "adv-cloud-computing-new-dev-scheduleNewsLetter",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": "arn:aws:iam::975718584711:role/LabRole"
+      }
+    },
+    "BroadcastNewsletterLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": "term-assignment-final-deployment",
+          "S3Key": "newsly.zip"
+        },
+        "Handler": "src/broadcastNewsletter.handler",
+        "Runtime": "nodejs18.x",
+        "FunctionName": "adv-cloud-computing-new-dev-broadcastNewsletter",
+        "MemorySize": 1024,
+        "Timeout": 6,
+        "Role": "arn:aws:iam::975718584711:role/LabRole"
+      }
+    },
+    "SubscribeNewsLetterSM": {
+      "Type": "AWS::StepFunctions::StateMachine",
+      "Properties": {
+        "DefinitionString": {
+          "Fn::Sub": [
+            "{\n  \"Comment\": \"Subscribe NewsLetter State Machine\",\n  \"StartAt\": \"savePreferences\",\n  \"States\": {\n    \"savePreferences\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${savePreferences}\",\n      \"Next\": \"subscribeForNotifications\"\n    },\n    \"subscribeForNotifications\": {\n      \"Type\": \"Task\",\n      \"Resource\": \"${subscribeNotifications}\",\n      \"End\": true\n    }\n  }\n}",
+            {
+              "savePreferences": {
+                "Fn::GetAtt": [
+                  "SavePreferencesLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "subscribeNotifications": {
+                "Fn::GetAtt": [
+                  "SubscribeForNotificationsLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        },
+        "RoleArn": "arn:aws:iam::975718584711:role/LabRole",
+        "StateMachineName": "SubscribeNewsLetterSM"
+      },
+      "DependsOn": []
+    },
+    "BroadcastNewsletterEventsRuleSchedule1": {
+      "Type": "AWS::Events::Rule",
+      "Properties": {
+        "ScheduleExpression": "cron(42 21 * * ? *)",
+        "State": "ENABLED",
+        "Name": "daily-newsletter-rule",
+        "Description": "newsletters-daily",
+        "Targets": [
+          {
+            "Arn": {
+              "Fn::GetAtt": [
+                "BroadcastNewsletterLambdaFunction",
+                "Arn"
+              ]
+            },
+            "Id": "broadcastNewsletterSchedule"
+          }
+        ]
+      }
+    },
+    "BroadcastNewsletterLambdaPermissionEventsRuleSchedule1": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "BroadcastNewsletterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::GetAtt": [
+            "BroadcastNewsletterEventsRuleSchedule1",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "S3BucketBusinessnewsletter": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "business-newsletter",
+        "NotificationConfiguration": {
+          "LambdaConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Function": {
+                "Fn::GetAtt": [
+                  "ScheduleNewsLetterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "DependsOn": [
+        "ScheduleNewsLetterLambdaPermissionBusinessnewsletterS3"
+      ]
+    },
+    "S3BucketInternationalnewsletter": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "international-newsletter",
+        "NotificationConfiguration": {
+          "LambdaConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Function": {
+                "Fn::GetAtt": [
+                  "ScheduleNewsLetterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "DependsOn": [
+        "ScheduleNewsLetterLambdaPermissionInternationalnewsletterS3"
+      ]
+    },
+    "S3BucketPoliticsnewsletter": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "politics-newsletter",
+        "NotificationConfiguration": {
+          "LambdaConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Function": {
+                "Fn::GetAtt": [
+                  "ScheduleNewsLetterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "DependsOn": [
+        "ScheduleNewsLetterLambdaPermissionPoliticsnewsletterS3"
+      ]
+    },
+    "S3BucketSciencenewsletter": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "science-newsletter",
+        "NotificationConfiguration": {
+          "LambdaConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Function": {
+                "Fn::GetAtt": [
+                  "ScheduleNewsLetterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "DependsOn": [
+        "ScheduleNewsLetterLambdaPermissionSciencenewsletterS3"
+      ]
+    },
+    "S3BucketSportsnewsletter": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "sports-newsletter",
+        "NotificationConfiguration": {
+          "LambdaConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Function": {
+                "Fn::GetAtt": [
+                  "ScheduleNewsLetterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "DependsOn": [
+        "ScheduleNewsLetterLambdaPermissionSportsnewsletterS3"
+      ]
+    },
+    "S3BucketTechnologynewsletter": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "technology-newsletter",
+        "NotificationConfiguration": {
+          "LambdaConfigurations": [
+            {
+              "Event": "s3:ObjectCreated:*",
+              "Function": {
+                "Fn::GetAtt": [
+                  "ScheduleNewsLetterLambdaFunction",
+                  "Arn"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "DependsOn": [
+        "ScheduleNewsLetterLambdaPermissionTechnologynewsletterS3"
+      ]
+    },
+    "ScheduleNewsLetterLambdaPermissionBusinessnewsletterS3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ScheduleNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "s3.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":s3:::business-newsletter"
+            ]
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ScheduleNewsLetterLambdaPermissionInternationalnewsletterS3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ScheduleNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "s3.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":s3:::international-newsletter"
+            ]
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ScheduleNewsLetterLambdaPermissionPoliticsnewsletterS3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ScheduleNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "s3.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":s3:::politics-newsletter"
+            ]
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ScheduleNewsLetterLambdaPermissionSciencenewsletterS3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ScheduleNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "s3.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":s3:::science-newsletter"
+            ]
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ScheduleNewsLetterLambdaPermissionSportsnewsletterS3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ScheduleNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "s3.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":s3:::sports-newsletter"
+            ]
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ScheduleNewsLetterLambdaPermissionTechnologynewsletterS3": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "ScheduleNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "s3.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":s3:::technology-newsletter"
+            ]
+          ]
+        },
+        "SourceAccount": {
+          "Ref": "AWS::AccountId"
+        }
+      }
+    },
+    "ApiGatewayRestApi": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "dev-adv-cloud-computing-new",
+        "EndpointConfiguration": {
+          "Types": [
+            "EDGE"
+          ]
+        },
+        "Policy": ""
+      }
+    },
+    "ApiGatewayResourceSubscribe": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "ApiGatewayRestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "subscribe",
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        }
+      }
+    },
+    "ApiGatewayResourceUpload": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "ApiGatewayRestApi",
+            "RootResourceId"
+          ]
+        },
+        "PathPart": "upload",
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        }
+      }
+    },
+    "ApiGatewayMethodSubscribeOptions": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Origin": true,
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true
+            },
+            "ResponseModels": {}
+          }
+        ],
+        "RequestParameters": {},
+        "Integration": {
+          "Type": "MOCK",
+          "RequestTemplates": {
+            "application/json": "{statusCode:200}"
+          },
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+              },
+              "ResponseTemplates": {
+                "application/json": ""
+              }
+            }
+          ]
+        },
+        "ResourceId": {
+          "Ref": "ApiGatewayResourceSubscribe"
+        },
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        }
+      }
+    },
+    "ApiGatewayMethodUploadOptions": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "OPTIONS",
+        "MethodResponses": [
+          {
+            "StatusCode": "200",
+            "ResponseParameters": {
+              "method.response.header.Access-Control-Allow-Origin": true,
+              "method.response.header.Access-Control-Allow-Headers": true,
+              "method.response.header.Access-Control-Allow-Methods": true
+            },
+            "ResponseModels": {}
+          }
+        ],
+        "RequestParameters": {},
+        "Integration": {
+          "Type": "MOCK",
+          "RequestTemplates": {
+            "application/json": "{statusCode:200}"
+          },
+          "ContentHandling": "CONVERT_TO_TEXT",
+          "IntegrationResponses": [
+            {
+              "StatusCode": "200",
+              "ResponseParameters": {
+                "method.response.header.Access-Control-Allow-Origin": "'*'",
+                "method.response.header.Access-Control-Allow-Headers": "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Amzn-Trace-Id'",
+                "method.response.header.Access-Control-Allow-Methods": "'OPTIONS,POST'"
+              },
+              "ResponseTemplates": {
+                "application/json": ""
+              }
+            }
+          ]
+        },
+        "ResourceId": {
+          "Ref": "ApiGatewayResourceUpload"
+        },
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        }
+      }
+    },
+    "ApiGatewayMethodSubscribePost": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "POST",
+        "RequestParameters": {},
+        "ResourceId": {
+          "Ref": "ApiGatewayResourceSubscribe"
+        },
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        },
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region"
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "SubscribeStateMachineTriggerLambdaFunction",
+                    "Arn"
+                  ]
+                },
+                "/invocations"
+              ]
+            ]
+          }
+        },
+        "MethodResponses": []
+      },
+      "DependsOn": [
+        "SubscribeStateMachineTriggerLambdaPermissionApiGateway"
+      ]
+    },
+    "ApiGatewayMethodUploadPost": {
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "HttpMethod": "POST",
+        "RequestParameters": {},
+        "ResourceId": {
+          "Ref": "ApiGatewayResourceUpload"
+        },
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        },
+        "ApiKeyRequired": false,
+        "AuthorizationType": "NONE",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition"
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region"
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "UploadNewsLetterLambdaFunction",
+                    "Arn"
+                  ]
+                },
+                "/invocations"
+              ]
+            ]
+          }
+        },
+        "MethodResponses": []
+      },
+      "DependsOn": [
+        "UploadNewsLetterLambdaPermissionApiGateway"
+      ]
+    },
+    "ApiGatewayDeployment1690493995410": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "Properties": {
+        "RestApiId": {
+          "Ref": "ApiGatewayRestApi"
+        },
+        "StageName": "dev"
+      },
+      "DependsOn": [
+        "ApiGatewayMethodSubscribeOptions",
+        "ApiGatewayMethodUploadOptions",
+        "ApiGatewayMethodSubscribePost",
+        "ApiGatewayMethodUploadPost"
+      ]
+    },
+    "SubscribeStateMachineTriggerLambdaPermissionApiGateway": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "SubscribeStateMachineTriggerLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "/*/*"
+            ]
+          ]
+        }
+      }
+    },
+    "UploadNewsLetterLambdaPermissionApiGateway": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "UploadNewsLetterLambdaFunction",
+            "Arn"
+          ]
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition"
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region"
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId"
+              },
+              ":",
+              {
+                "Ref": "ApiGatewayRestApi"
+              },
+              "/*/*"
+            ]
+          ]
+        }
+      }
+    },
+    "newsletterPreferencesTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "newsletter_preferences",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "email",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "email",
+            "KeyType": "HASH"
+          }
+        ],
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 1,
+          "WriteCapacityUnits": 1
+        }
+      }
+    },
+    "snsTopicBusiness": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "business_newsletter",
+        "FifoTopic": false
+      }
+    },
+    "snsTopicInternational": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "international_newsletter",
+        "FifoTopic": false
+      }
+    },
+    "snsTopicPolitics": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "politics_newsletter",
+        "FifoTopic": false
+      }
+    },
+    "snsTopicScience": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "science_newsletter",
+        "FifoTopic": false
+      }
+    },
+    "snsTopicSports": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "sports_newsletter",
+        "FifoTopic": false
+      }
+    },
+    "snsTopicTechnology": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "technology_newsletter",
+        "FifoTopic": false
+      }
+    },
+    "sqsNewsLetter": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "newsletter-scheduler"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+    "Comment": "Subscribe NewsLetter State Machine",
+    "StartAt": "savePreferences",
+    "States": {
+        "savePreferences": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-east-1:975718584711:function:adv-cloud-computing-new-dev-savePreferences",
+            "Next": "subscribeForNotifications"
+        },
+        "subscribeForNotifications": {
+            "Type": "Task",
+            "Resource": "arn:aws:lambda:us-east-1:975718584711:function:adv-cloud-computing-new-dev-subscribeForNotifications",
+            "End": true
+        }
+    }
+}
